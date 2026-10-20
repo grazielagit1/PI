@@ -88,48 +88,16 @@ def escala_de_cinza(rgb):
 MASCARA_MEDIA = np.ones((3, 3)) / 9.0
 
 
-def passadas_blur(cinza):
+def blur(imagem):
     """
-    Uma única passada da máscara 3x3 só mistura cada pixel com os vizinhos
-    imediatos; numa foto grande (ex.: 4000x3000) isso é invisível a olho nu.
-    Por isso aplicamos a mesma máscara várias vezes, proporcional ao tamanho
-    da imagem (cerca de 1 passada a cada 50 pixels do maior lado).
+    Borramento: convolução com a máscara de média 3x3 (todos 1, vezes 1/9).
+    Aceita imagem em cinza (2D) ou colorida (3D); na colorida, a máscara é
+    aplicada em cada canal (R, G e B) separadamente.
     """
-    return max(3, max(cinza.shape) // 50)
-
-
-def blur(cinza, passadas=None):
-    """
-    Borramento: convolução com a máscara de média 3x3 (todos 1, vezes 1/9),
-    aplicada 'passadas' vezes seguidas para o efeito ficar visível.
-    """
-    if passadas is None:
-        passadas = passadas_blur(cinza)
-
-    # Unsharp e sharpening também usam o blur. Guardamos o último resultado
-    # para não refazer todas as passadas quando a mesma imagem chega de novo.
-    ultimo = _cache_blur.get("entrada")
-    if (ultimo is not None and _cache_blur["passadas"] == passadas
-            and ultimo.shape == cinza.shape and np.array_equal(ultimo, cinza)):
-        return _cache_blur["saida"]
-
-    resultado = cinza
-    for _ in range(passadas):
-        resultado = convolucao(resultado, MASCARA_MEDIA)
-
-    _cache_blur.update(entrada=cinza.copy(), passadas=passadas, saida=resultado)
-    return resultado
-
-
-_cache_blur = {}
-
-
-def blur_colorido(rgb):
-    """
-    Blur mantendo as cores: aplica o mesmo borramento em cada canal
-    (R, G e B) separadamente e junta os três canais de volta.
-    """
-    return np.stack([blur(rgb[:, :, c]) for c in range(3)], axis=2)
+    if imagem.ndim == 3:
+        return np.stack([convolucao(imagem[:, :, c], MASCARA_MEDIA)
+                         for c in range(imagem.shape[2])], axis=2)
+    return convolucao(imagem, MASCARA_MEDIA)
 
 
 SOBEL = [
@@ -161,14 +129,18 @@ def sobel(cinza):
     return limitar(resultado)
 
 
-def unsharp(cinza):
+def unsharp(imagem):
     """Unsharp: imagem original menos o resultado do blur (detalhes finos)."""
-    return cinza - blur(cinza)
+    return imagem - blur(imagem)
 
 
-def sharpening(cinza):
-    """Sharpening (nitidez): resultado do unsharp somado à imagem original."""
-    return cinza + unsharp(cinza)
+def sharpening(imagem):
+    """
+    Sharpening (nitidez): resultado do unsharp somado à imagem original.
+    Recebe a imagem colorida, então a nitidez é aplicada em cada canal
+    e as cores são mantidas.
+    """
+    return imagem + unsharp(imagem)
 
 
 def negativo(cinza):
@@ -176,14 +148,13 @@ def negativo(cinza):
     return 255 - cinza
 
 
-# Nome do filtro -> função. O unsharp é amplificado na hora de salvar
-# (ver aplicar) para ficar visível, já que seus valores ficam perto de 0.
+# Nome do filtro -> função.
 FILTROS = {
     "cinza": lambda rgb: escala_de_cinza(rgb),
-    "blur": lambda rgb: blur_colorido(rgb),
+    "blur": lambda rgb: blur(rgb),
     "sobel": lambda rgb: sobel(escala_de_cinza(rgb)),
     "unsharp": lambda rgb: unsharp(escala_de_cinza(rgb)),
-    "sharpening": lambda rgb: sharpening(escala_de_cinza(rgb)),
+    "sharpening": lambda rgb: sharpening(rgb),
     "negativo": lambda rgb: negativo(escala_de_cinza(rgb)),
 }
 
@@ -200,12 +171,7 @@ def caminho_saida(caminho_entrada, nome):
 
 def aplicar(rgb, nome, caminho_entrada):
     """Aplica um filtro, salva o arquivo e devolve a matriz resultante."""
-    resultado = FILTROS[nome](rgb)
-    if nome == "unsharp":
-        # Os valores do unsharp ficam em torno de 0 (podem ser negativos).
-        # Somamos 128 para que o cinza médio represente "sem detalhe".
-        resultado = resultado + 128
-    resultado = limitar(resultado)
+    resultado = limitar(FILTROS[nome](rgb))
     saida = caminho_saida(caminho_entrada, nome)
     salvar_imagem(resultado, saida)
     print(f"[ok] {nome:<11} -> {saida}")
