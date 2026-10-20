@@ -124,6 +124,14 @@ def blur(cinza, passadas=None):
 _cache_blur = {}
 
 
+def blur_colorido(rgb):
+    """
+    Blur mantendo as cores: aplica o mesmo borramento em cada canal
+    (R, G e B) separadamente e junta os três canais de volta.
+    """
+    return np.stack([blur(rgb[:, :, c]) for c in range(3)], axis=2)
+
+
 SOBEL = [
     np.array([[ 1,  2,  1],
               [ 0,  0,  0],
@@ -172,7 +180,7 @@ def negativo(cinza):
 # (ver aplicar) para ficar visível, já que seus valores ficam perto de 0.
 FILTROS = {
     "cinza": lambda rgb: escala_de_cinza(rgb),
-    "blur": lambda rgb: blur(escala_de_cinza(rgb)),
+    "blur": lambda rgb: blur_colorido(rgb),
     "sobel": lambda rgb: sobel(escala_de_cinza(rgb)),
     "unsharp": lambda rgb: unsharp(escala_de_cinza(rgb)),
     "sharpening": lambda rgb: sharpening(escala_de_cinza(rgb)),
