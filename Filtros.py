@@ -8,7 +8,6 @@ manualmente; a biblioteca Pillow é usada apenas para ler e salvar o arquivo.
 Uso:
     python filtros.py imagem.jpg            -> menu interativo
     python filtros.py imagem.jpg sobel      -> aplica um filtro
-    python filtros.py imagem.jpg todos      -> aplica todos os filtros
 
 Dependências:
     pip install pillow numpy
@@ -18,7 +17,7 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 
 # ---------------------------------------------------------------------------
@@ -178,58 +177,17 @@ def aplicar(rgb, nome, caminho_entrada):
     return resultado
 
 
-def aplicar_todos(rgb, caminho_entrada):
-    """
-    Aplica todos os filtros (um arquivo para cada) e também gera
-    <imagem>_todos.png: um mosaico com a original e todos os resultados
-    lado a lado, com o nome de cada filtro, para facilitar a comparação.
-    """
-    paineis = [("original", rgb)]
-    for nome in FILTROS:
-        paineis.append((nome, aplicar(rgb, nome, caminho_entrada)))
-
-    largura_painel = 500
-    altura_img, largura_img = rgb.shape[:2]
-    altura_painel = round(altura_img * largura_painel / largura_img)
-    faixa = 30                                   # espaço para o título
-    colunas = 4
-    linhas = (len(paineis) + colunas - 1) // colunas
-
-    mosaico = Image.new("RGB", (colunas * largura_painel,
-                                linhas * (altura_painel + faixa)), "white")
-    desenho = ImageDraw.Draw(mosaico)
-    try:
-        fonte = ImageFont.load_default(size=22)
-    except TypeError:                            # Pillow antigo
-        fonte = ImageFont.load_default()
-
-    for i, (nome, matriz) in enumerate(paineis):
-        img = Image.fromarray(limitar(matriz).astype(np.uint8)).convert("RGB")
-        img = img.resize((largura_painel, altura_painel))
-        x = (i % colunas) * largura_painel
-        y = (i // colunas) * (altura_painel + faixa)
-        desenho.text((x + 8, y + 4), nome, fill="black", font=fonte)
-        mosaico.paste(img, (x, y + faixa))
-
-    saida = caminho_saida(caminho_entrada, "todos")
-    mosaico.save(saida)
-    print(f"[ok] {'todos':<11} -> {saida}")
-
-
 def menu(rgb, caminho):
     nomes = list(FILTROS)
     while True:
         print("\nEscolha uma transformação:")
         for i, nome in enumerate(nomes, 1):
             print(f"  {i}) {nome}")
-        print(f"  {len(nomes) + 1}) todos")
         print("  0) sair")
         opcao = input("> ").strip().lower()
         if opcao in ("0", "sair"):
             break
-        if opcao in ("todos", str(len(nomes) + 1)):
-            aplicar_todos(rgb, caminho)
-        elif opcao in nomes:
+        if opcao in nomes:
             aplicar(rgb, opcao, caminho)
         elif opcao.isdigit() and 1 <= int(opcao) <= len(nomes):
             aplicar(rgb, nomes[int(opcao) - 1], caminho)
@@ -252,12 +210,10 @@ def main():
         return
 
     escolha = sys.argv[2].lower()
-    if escolha == "todos":
-        aplicar_todos(rgb, caminho)
-    elif escolha in FILTROS:
+    if escolha in FILTROS:
         aplicar(rgb, escolha, caminho)
     else:
-        print(f"Filtro desconhecido: {escolha}. Opções: {', '.join(FILTROS)}, todos")
+        print(f"Filtro desconhecido: {escolha}. Opções: {', '.join(FILTROS)}")
         sys.exit(1)
 
 
