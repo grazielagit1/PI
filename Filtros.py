@@ -14,29 +14,12 @@ Dependências:
     pip install pillow numpy
 """
 
-# ===========================================================================
-# IMPORTAÇÕES
-# ===========================================================================
-
-import os    # montar os caminhos dos arquivos de saída (pasta, nome, extensão)
-import sys   # ler os argumentos da linha de comando (sys.argv) e encerrar (sys.exit)
-
-# NumPy: guarda a imagem como uma matriz de números e faz contas com ela
-# inteira de uma vez (muito mais rápido do que laços pixel a pixel em Python).
+import os
+import sys
 import numpy as np
-
-# Pillow (PIL): usado SOMENTE para abrir/salvar arquivos de imagem e para
-# desenhar o mosaico final. Nenhum filtro pronto do Pillow é usado.
-#   Image     -> abrir, criar e salvar imagens
-#   ImageDraw -> escrever o nome de cada filtro no mosaico
-#   ImageFont -> fonte usada nesses nomes
 from PIL import Image, ImageDraw, ImageFont
 
-
-# ===========================================================================
 # FUNÇÕES AUXILIARES
-# ===========================================================================
-
 def carregar_imagem(caminho):
     """Lê a imagem e devolve uma matriz RGB (altura x largura x 3) em float."""
     # .convert("RGB") garante 3 canais mesmo se o arquivo vier em outro
@@ -68,13 +51,8 @@ def limitar(matriz):
 
 def convolucao(imagem, mascara):
     """
-    Convolução 2D de uma imagem em tons de cinza com uma máscara 3x3.
-
-    A borda é tratada replicando os pixels da extremidade, para que a imagem
-    de saída tenha o mesmo tamanho da entrada.
-
-    Para cada pixel (i, j):
-        saida[i, j] = soma de mascara[a, b] * imagem[i + a - 1, j + b - 1]
+    A convolução passa uma máscara 3x3 por cima de cada pixel.
+    O novo valor do pixel é a soma dos 9 vizinhos, cada um multiplicado pelo peso que está na mesma posição da máscara
     """
     # shape de uma imagem em cinza = (número de linhas, número de colunas).
     altura, largura = imagem.shape
@@ -416,8 +394,5 @@ def main():
         sys.exit(1)                           # 1 = terminou com erro
 
 
-# Este bloco só roda quando o arquivo é executado diretamente
-# (python filtros.py). Se outro programa fizer "import filtros", as funções
-# ficam disponíveis mas o menu não abre sozinho.
 if __name__ == "__main__":
     main()
